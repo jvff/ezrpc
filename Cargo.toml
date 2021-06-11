@@ -8,5 +8,6 @@ edition = "2018"
 proc-macro = true
 
 [dependencies]
+heck = "0.3"
 quote = "1"
 syn = { version = "1", features = ["full"] }

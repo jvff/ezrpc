@@ -1,22 +1,23 @@
 use {
     heck::CamelCase,
-    proc_macro::TokenStream,
-    quote::{quote, ToTokens},
+    proc_macro::TokenStream as RawTokenStream,
+    proc_macro2::TokenStream,
+    quote::quote,
     syn::{parse_macro_input, FnArg, Ident, ImplItem, ImplItemMethod, ItemImpl},
 };
 
 #[proc_macro_attribute]
-pub fn tower(_attribute: TokenStream, item_tokens: TokenStream) -> TokenStream {
+pub fn tower(_attribute: RawTokenStream, item_tokens: RawTokenStream) -> RawTokenStream {
     let item = parse_macro_input!(item_tokens as ItemImpl);
     let request = build_request(&item);
 
-    TokenStream::from(quote! {
+    RawTokenStream::from(quote! {
         #request
         #item
     })
 }
 
-fn build_request(item: &ItemImpl) -> impl ToTokens {
+fn build_request(item: &ItemImpl) -> TokenStream {
     let variants = item.items.iter().filter_map(|item| match item {
         ImplItem::Method(method) => Some(build_request_variant(method)),
         _ => None,
@@ -29,7 +30,7 @@ fn build_request(item: &ItemImpl) -> impl ToTokens {
     }
 }
 
-fn build_request_variant(method: &ImplItemMethod) -> impl ToTokens {
+fn build_request_variant(method: &ImplItemMethod) -> TokenStream {
     let name_string = method.sig.ident.to_string().to_camel_case();
     let name = Ident::new(&name_string, method.sig.ident.span());
 
@@ -60,7 +61,7 @@ fn has_parameters(method: &ImplItemMethod) -> bool {
 
 fn build_request_variant_parameters(
     method: &ImplItemMethod,
-) -> impl Iterator<Item = impl ToTokens> + '_ {
+) -> impl Iterator<Item = TokenStream> + '_ {
     method
         .sig
         .inputs

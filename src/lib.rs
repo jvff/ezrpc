@@ -85,11 +85,13 @@ fn build_request_variant_parameters(
 
 fn build_service(item: &ItemImpl) -> TokenStream {
     let service_impl = build_service_impl(item);
+    let service_methods = build_service_methods(item);
 
     quote! {
         pub struct Service;
 
         #service_impl
+        #service_methods
     }
 }
 
@@ -299,5 +301,63 @@ fn build_service_request_match_arm(self_type: &Type, method: &ImplItemMethod) ->
 
     quote! {
         futures::FutureExt::boxed(#self_type::#method_name( #( #bindings ),* ))
+    }
+}
+
+fn build_service_methods(item: &ItemImpl) -> TokenStream {
+    let service_methods = item.items.iter().filter_map(|item| match item {
+        ImplItem::Method(method) => Some(build_service_method(method)),
+        _ => None,
+    });
+
+    quote! {
+        impl Service {
+            #( #service_methods )*
+        }
+    }
+}
+
+fn build_service_method(method: &ImplItemMethod) -> TokenStream {
+    let method_name = &method.sig.ident;
+    let parameters = build_service_method_parameters(method);
+    let result = &method.sig.output;
+    let request = build_service_method_request(method);
+
+    quote! {
+        pub async fn #method_name(&mut self, #( #parameters ),*) #result {
+            use tower::{Service as _, ServiceExt as _};
+
+            self.ready().await?.call(#request).await
+        }
+    }
+}
+
+fn build_service_method_parameters(
+    method: &ImplItemMethod,
+) -> impl Iterator<Item = TokenStream> + '_ {
+    method
+        .sig
+        .inputs
+        .iter()
+        .filter_map(|argument| match argument {
+            FnArg::Receiver(_) => None,
+            FnArg::Typed(argument) => Some(quote! { #argument }),
+        })
+}
+
+fn build_service_method_request(method: &ImplItemMethod) -> TokenStream {
+    let name_string = method.sig.ident.to_string().to_camel_case();
+    let name = Ident::new(&name_string, method.sig.ident.span());
+
+    if has_parameters(method) {
+        let parameters = build_request_match_bindings(method);
+
+        quote! {
+            Request::#name {
+                #( #parameters ),*
+            }
+        }
+    } else {
+        quote! { Request::#name }
     }
 }

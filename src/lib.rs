@@ -84,13 +84,22 @@ fn build_request_variant_parameters(
 }
 
 fn build_service(item: &ItemImpl) -> TokenStream {
-    let self_type = &item.self_ty;
+    let service_impl = build_service_impl(item);
+
+    quote! {
+        pub struct Service;
+
+        #service_impl
+    }
+}
+
+fn build_service_impl(item: &ItemImpl) -> TokenStream {
     let response = build_service_response(item);
     let error = build_service_error(item);
     let request_calls = build_service_request_calls(item);
 
     quote! {
-        impl tower::Service<Request> for #self_type {
+        impl tower::Service<Request> for Service {
             type Response = #response;
             type Error = #error;
             type Future = std::pin::Pin<Box<
@@ -235,15 +244,17 @@ fn extract_result_error_type(path: &Path) -> Option<TokenStream> {
 }
 
 fn build_service_request_calls(item: &ItemImpl) -> impl Iterator<Item = TokenStream> + '_ {
+    let self_type = &item.self_ty;
+
     item.items
         .iter()
         .filter_map(|item| match item {
             ImplItem::Method(method) => Some(method),
             _ => None,
         })
-        .map(|method| {
+        .map(move |method| {
             let request = build_service_request_match_pattern(method);
-            let body = build_service_request_match_arm(method);
+            let body = build_service_request_match_arm(self_type, method);
 
             quote! { #request => #body }
         })
@@ -282,11 +293,11 @@ fn build_request_match_bindings(method: &ImplItemMethod) -> impl Iterator<Item =
         })
 }
 
-fn build_service_request_match_arm(method: &ImplItemMethod) -> TokenStream {
+fn build_service_request_match_arm(self_type: &Type, method: &ImplItemMethod) -> TokenStream {
     let bindings = build_request_match_bindings(method);
     let method_name = &method.sig.ident;
 
     quote! {
-        futures::FutureExt::boxed(Self::#method_name( #( #bindings ),* ))
+        futures::FutureExt::boxed(#self_type::#method_name( #( #bindings ),* ))
     }
 }

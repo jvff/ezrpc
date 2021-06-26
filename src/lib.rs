@@ -6,10 +6,7 @@ use {
     proc_macro::TokenStream as RawTokenStream,
     proc_macro2::TokenStream,
     quote::quote,
-    syn::{
-        parse_macro_input, FnArg, GenericArgument, Ident, ImplItem, ImplItemMethod, ItemImpl, Path,
-        PathArguments, ReturnType, Type,
-    },
+    syn::{parse_macro_input, FnArg, Ident, ImplItem, ImplItemMethod, ItemImpl, Type},
 };
 
 #[proc_macro_attribute]
@@ -156,52 +153,9 @@ fn build_service_error(item: &ItemImpl) -> TokenStream {
 }
 
 fn build_service_error_from_method(method: &ImplItemMethod) -> Option<TokenStream> {
-    match &method.sig.output {
-        ReturnType::Default => None,
-        ReturnType::Type(_, return_type) => build_service_error_from_return_type(&return_type),
-    }
-}
-
-fn build_service_error_from_return_type(return_type: &Type) -> Option<TokenStream> {
-    match return_type {
-        Type::Path(path_type) if path_type.qself.is_none() => {
-            extract_result_error_type(&path_type.path)
-        }
-        _ => None,
-    }
-}
-
-fn extract_result_error_type(path: &Path) -> Option<TokenStream> {
-    let mut segments = path.segments.iter();
-    let first_segment = segments.next()?;
-
-    let type_arguments = if first_segment.ident == "Result" && path.leading_colon.is_none() {
-        &first_segment.arguments
-    } else {
-        let second_segment = segments.next()?;
-        let third_segment = segments.next()?;
-
-        if first_segment.ident != "std"
-            || second_segment.ident != "result"
-            || third_segment.ident != "Result"
-        {
-            return None;
-        }
-
-        &third_segment.arguments
-    };
-
-    match type_arguments {
-        PathArguments::AngleBracketed(arguments) => arguments
-            .args
-            .iter()
-            .map(|argument| match argument {
-                GenericArgument::Type(ok_type) => quote! { #ok_type },
-                _ => panic!("Unexpected generic argument in Result type"),
-            })
-            .skip(1)
-            .next(),
-        _ => None,
+    match ResultData::new(&method.sig.output) {
+        ResultData::Result { err_type, .. } => Some(quote! { #err_type }),
+        ResultData::NotResult(_) => None,
     }
 }
 

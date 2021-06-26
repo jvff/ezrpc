@@ -1,6 +1,7 @@
 mod tower;
 
 use {
+    crate::tower::ResultData,
     heck::CamelCase,
     proc_macro::TokenStream as RawTokenStream,
     proc_macro2::TokenStream,
@@ -138,52 +139,9 @@ fn build_service_response(item: &ItemImpl) -> TokenStream {
 }
 
 fn build_service_response_from_method(method: &ImplItemMethod) -> TokenStream {
-    match &method.sig.output {
-        ReturnType::Default => quote! { () },
-        ReturnType::Type(_, return_type) => build_service_response_from_return_type(&return_type),
-    }
-}
+    let result = ResultData::new(&method.sig.output);
 
-fn build_service_response_from_return_type(return_type: &Type) -> TokenStream {
-    match return_type {
-        Type::Path(path_type) if path_type.qself.is_none() => {
-            extract_result_ok_type(&path_type.path).unwrap_or_else(|| quote! { #path_type })
-        }
-        other => quote! { #other },
-    }
-}
-
-fn extract_result_ok_type(path: &Path) -> Option<TokenStream> {
-    let mut segments = path.segments.iter();
-    let first_segment = segments.next()?;
-
-    let type_arguments = if first_segment.ident == "Result" && path.leading_colon.is_none() {
-        &first_segment.arguments
-    } else {
-        let second_segment = segments.next()?;
-        let third_segment = segments.next()?;
-
-        if first_segment.ident != "std"
-            || second_segment.ident != "result"
-            || third_segment.ident != "Result"
-        {
-            return None;
-        }
-
-        &third_segment.arguments
-    };
-
-    match type_arguments {
-        PathArguments::AngleBracketed(arguments) => arguments
-            .args
-            .iter()
-            .map(|argument| match argument {
-                GenericArgument::Type(ok_type) => quote! { #ok_type },
-                _ => panic!("Unexpected generic argument in Result type"),
-            })
-            .next(),
-        _ => None,
-    }
+    result.ok_type()
 }
 
 fn build_service_error(item: &ItemImpl) -> TokenStream {

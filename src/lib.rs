@@ -1,3 +1,5 @@
+mod tower;
+
 use {
     heck::CamelCase,
     proc_macro::TokenStream as RawTokenStream,

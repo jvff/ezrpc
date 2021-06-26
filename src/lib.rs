@@ -124,39 +124,15 @@ fn build_service_impl(item: &ItemImpl) -> TokenStream {
     }
 }
 
-fn build_service_response(item: &ItemImpl) -> TokenStream {
+fn extract_result_data(item: &ItemImpl) -> ResultData {
     item.items
         .iter()
         .filter_map(|item| match item {
-            ImplItem::Method(method) => Some(build_service_response_from_method(method)),
+            ImplItem::Method(method) => Some(ResultData::new(&method.sig.output)),
             _ => None,
         })
         .next()
         .expect("No methods in `impl` item")
-}
-
-fn build_service_response_from_method(method: &ImplItemMethod) -> TokenStream {
-    let result = ResultData::new(&method.sig.output);
-
-    result.ok_type()
-}
-
-fn build_service_error(item: &ItemImpl) -> TokenStream {
-    item.items
-        .iter()
-        .filter_map(|item| match item {
-            ImplItem::Method(method) => build_service_error_from_method(method),
-            _ => None,
-        })
-        .next()
-        .unwrap_or_else(|| quote! { () })
-}
-
-fn build_service_error_from_method(method: &ImplItemMethod) -> Option<TokenStream> {
-    match ResultData::new(&method.sig.output) {
-        ResultData::Result { err_type, .. } => Some(quote! { #err_type }),
-        ResultData::NotResult(_) => None,
-    }
 }
 
 fn build_service_request_calls(item: &ItemImpl) -> impl Iterator<Item = TokenStream> + '_ {

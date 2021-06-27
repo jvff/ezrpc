@@ -1,19 +1,19 @@
 mod tower;
 
 use {
-    crate::tower::MethodData,
+    crate::tower::{Generator, MethodData},
     proc_macro::TokenStream as RawTokenStream,
     proc_macro2::TokenStream,
     quote::quote,
-    syn::{parse_macro_input, ImplItem, ItemImpl, Type},
+    syn::{parse_macro_input, ItemImpl},
 };
 
 #[proc_macro_attribute]
 pub fn tower(_attribute: RawTokenStream, item_tokens: RawTokenStream) -> RawTokenStream {
     let item = parse_macro_input!(item_tokens as ItemImpl);
-    let methods = extract_method_data(&item);
-    let request = build_request(&methods);
-    let service = build_service(&item.self_ty, &methods);
+    let generator = Generator::new(&item);
+    let request = build_request(&generator);
+    let service = build_service(&generator);
 
     RawTokenStream::from(quote! {
         #request
@@ -22,18 +22,11 @@ pub fn tower(_attribute: RawTokenStream, item_tokens: RawTokenStream) -> RawToke
     })
 }
 
-fn extract_method_data(item: &ItemImpl) -> Vec<MethodData> {
-    item.items
+fn build_request(generator: &Generator) -> TokenStream {
+    let variants = generator
+        .methods()
         .iter()
-        .filter_map(|item| match item {
-            ImplItem::Method(method) => Some(MethodData::new(&method)),
-            _ => None,
-        })
-        .collect()
-}
-
-fn build_request(methods: &[MethodData]) -> TokenStream {
-    let variants = methods.iter().map(MethodData::request_enum_variant);
+        .map(MethodData::request_enum_variant);
 
     quote! {
         pub enum Request {
@@ -42,9 +35,9 @@ fn build_request(methods: &[MethodData]) -> TokenStream {
     }
 }
 
-fn build_service(self_type: &Type, methods: &[MethodData]) -> TokenStream {
-    let service_impl = build_service_impl(self_type, methods);
-    let service_methods = build_service_methods(methods);
+fn build_service(generator: &Generator) -> TokenStream {
+    let service_impl = build_service_impl(generator);
+    let service_methods = build_service_methods(generator);
 
     quote! {
         pub struct Service;
@@ -54,17 +47,14 @@ fn build_service(self_type: &Type, methods: &[MethodData]) -> TokenStream {
     }
 }
 
-fn build_service_impl(self_type: &Type, methods: &[MethodData]) -> TokenStream {
-    let result_data = methods
-        .iter()
-        .next()
-        .expect("No methods in `impl` item")
-        .result();
+fn build_service_impl(generator: &Generator) -> TokenStream {
+    let result_data = generator.result();
     let response = result_data.ok_type();
     let error = result_data.err_type();
-    let request_calls = methods
+    let request_calls = generator
+        .methods()
         .iter()
-        .map(|method| method.request_match_arm(self_type));
+        .map(|method| method.request_match_arm(generator.self_type()));
 
     quote! {
         impl tower::Service<Request> for Service {
@@ -90,8 +80,8 @@ fn build_service_impl(self_type: &Type, methods: &[MethodData]) -> TokenStream {
     }
 }
 
-fn build_service_methods(methods: &[MethodData]) -> TokenStream {
-    let service_methods = methods.iter().map(MethodData::service_method);
+fn build_service_methods(generator: &Generator) -> TokenStream {
+    let service_methods = generator.methods().iter().map(MethodData::service_method);
 
     quote! {
         impl Service {

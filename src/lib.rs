@@ -1,12 +1,12 @@
 mod tower;
 
 use {
-    crate::tower::{MethodData, ParameterData, ResultData},
+    crate::tower::{MethodData, ParameterData},
     heck::CamelCase,
     proc_macro::TokenStream as RawTokenStream,
     proc_macro2::TokenStream,
     quote::quote,
-    syn::{parse_macro_input, FnArg, Ident, ImplItem, ImplItemMethod, ItemImpl, Type},
+    syn::{parse_macro_input, Ident, ImplItem, ItemImpl, Type},
 };
 
 #[proc_macro_attribute]
@@ -14,7 +14,7 @@ pub fn tower(_attribute: RawTokenStream, item_tokens: RawTokenStream) -> RawToke
     let item = parse_macro_input!(item_tokens as ItemImpl);
     let methods = extract_method_data(&item);
     let request = build_request(&methods);
-    let service = build_service(&item, &methods);
+    let service = build_service(&item.self_ty, &methods);
 
     RawTokenStream::from(quote! {
         #request
@@ -61,20 +61,8 @@ fn build_request_variant(method: &MethodData) -> TokenStream {
     }
 }
 
-fn extract_parameter_data(method: &ImplItemMethod) -> Vec<ParameterData> {
-    method
-        .sig
-        .inputs
-        .iter()
-        .filter_map(|argument| match argument {
-            FnArg::Receiver(_) => None,
-            FnArg::Typed(argument) => Some(ParameterData::new(&argument)),
-        })
-        .collect()
-}
-
-fn build_service(item: &ItemImpl, methods: &[MethodData]) -> TokenStream {
-    let service_impl = build_service_impl(item);
+fn build_service(self_type: &Type, methods: &[MethodData]) -> TokenStream {
+    let service_impl = build_service_impl(self_type, methods);
     let service_methods = build_service_methods(methods);
 
     quote! {
@@ -85,11 +73,15 @@ fn build_service(item: &ItemImpl, methods: &[MethodData]) -> TokenStream {
     }
 }
 
-fn build_service_impl(item: &ItemImpl) -> TokenStream {
-    let result_data = extract_result_data(item);
+fn build_service_impl(self_type: &Type, methods: &[MethodData]) -> TokenStream {
+    let result_data = methods
+        .iter()
+        .next()
+        .expect("No methods in `impl` item")
+        .result();
     let response = result_data.ok_type();
     let error = result_data.err_type();
-    let request_calls = build_service_request_calls(item);
+    let request_calls = build_service_request_calls(self_type, methods);
 
     quote! {
         impl tower::Service<Request> for Service {
@@ -115,38 +107,22 @@ fn build_service_impl(item: &ItemImpl) -> TokenStream {
     }
 }
 
-fn extract_result_data(item: &ItemImpl) -> ResultData {
-    item.items
-        .iter()
-        .filter_map(|item| match item {
-            ImplItem::Method(method) => Some(ResultData::new(&method.sig.output)),
-            _ => None,
-        })
-        .next()
-        .expect("No methods in `impl` item")
+fn build_service_request_calls<'r, 's: 'r, 'm: 'r>(
+    self_type: &'s Type,
+    methods: &'m [MethodData],
+) -> impl Iterator<Item = TokenStream> + 'r {
+    methods.iter().map(move |method| {
+        let request = build_service_request_match_pattern(method);
+        let body = build_service_request_match_arm(self_type, method);
+
+        quote! { #request => #body }
+    })
 }
 
-fn build_service_request_calls(item: &ItemImpl) -> impl Iterator<Item = TokenStream> + '_ {
-    let self_type = &item.self_ty;
-
-    item.items
-        .iter()
-        .filter_map(|item| match item {
-            ImplItem::Method(method) => Some(method),
-            _ => None,
-        })
-        .map(move |method| {
-            let request = build_service_request_match_pattern(method);
-            let body = build_service_request_match_arm(self_type, method);
-
-            quote! { #request => #body }
-        })
-}
-
-fn build_service_request_match_pattern(method: &ImplItemMethod) -> TokenStream {
-    let name_string = method.sig.ident.to_string().to_camel_case();
-    let name = Ident::new(&name_string, method.sig.ident.span());
-    let parameters = extract_parameter_data(method);
+fn build_service_request_match_pattern(method: &MethodData) -> TokenStream {
+    let name_string = method.name().to_string().to_camel_case();
+    let name = Ident::new(&name_string, method.name().span());
+    let parameters = method.parameters();
 
     if !parameters.is_empty() {
         let bindings = parameters.iter().map(ParameterData::binding);
@@ -161,21 +137,9 @@ fn build_service_request_match_pattern(method: &ImplItemMethod) -> TokenStream {
     }
 }
 
-fn build_request_match_bindings(method: &ImplItemMethod) -> impl Iterator<Item = TokenStream> + '_ {
-    method
-        .sig
-        .inputs
-        .iter()
-        .filter_map(|argument| match argument {
-            FnArg::Receiver(_) => None,
-            FnArg::Typed(argument) => Some(ParameterData::new(&argument)),
-        })
-        .map(|parameter_data| parameter_data.binding())
-}
-
-fn build_service_request_match_arm(self_type: &Type, method: &ImplItemMethod) -> TokenStream {
-    let bindings = build_request_match_bindings(method);
-    let method_name = &method.sig.ident;
+fn build_service_request_match_arm(self_type: &Type, method: &MethodData) -> TokenStream {
+    let method_name = method.name();
+    let bindings = method.parameters().iter().map(ParameterData::binding);
 
     quote! {
         futures::FutureExt::boxed(#self_type::#method_name( #( #bindings ),* ))

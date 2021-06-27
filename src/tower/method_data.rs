@@ -3,7 +3,7 @@ use {
     heck::CamelCase,
     proc_macro2::TokenStream,
     quote::quote,
-    syn::{FnArg, Ident, ImplItemMethod},
+    syn::{FnArg, Ident, ImplItemMethod, Type},
 };
 
 /// Representation of a method's metadata.
@@ -89,6 +89,30 @@ impl MethodData {
             quote! {
                 #name {
                     #( #parameters ),*
+                }
+            }
+        }
+    }
+
+    /// Generate the dispatching code for this method.
+    ///
+    /// Consists af the match arm on the `Request` enum variant for this method, and a call to the
+    /// proper implementation method.
+    pub fn request_match_arm(&self, self_type: &Type) -> TokenStream {
+        let request_name = &self.request_name;
+        let method_name = &self.name;
+
+        if self.parameters.is_empty() {
+            quote! {
+                Request::#request_name => futures::FutureExt::boxed(#self_type::#method_name())
+            }
+        } else {
+            let bindings = self.parameters.iter().map(ParameterData::binding);
+            let arguments = bindings.clone();
+
+            quote! {
+                Request::#request_name { #( #bindings ),* } => {
+                    futures::FutureExt::boxed(#self_type::#method_name( #( #arguments ),* ))
                 }
             }
         }

@@ -62,7 +62,9 @@ fn build_service_impl(self_type: &Type, methods: &[MethodData]) -> TokenStream {
         .result();
     let response = result_data.ok_type();
     let error = result_data.err_type();
-    let request_calls = build_service_request_calls(self_type, methods);
+    let request_calls = methods
+        .iter()
+        .map(|method| method.request_match_arm(self_type));
 
     quote! {
         impl tower::Service<Request> for Service {
@@ -85,44 +87,6 @@ fn build_service_impl(self_type: &Type, methods: &[MethodData]) -> TokenStream {
                 }
             }
         }
-    }
-}
-
-fn build_service_request_calls<'r, 's: 'r, 'm: 'r>(
-    self_type: &'s Type,
-    methods: &'m [MethodData],
-) -> impl Iterator<Item = TokenStream> + 'r {
-    methods.iter().map(move |method| {
-        let request = build_service_request_match_pattern(method);
-        let body = build_service_request_match_arm(self_type, method);
-
-        quote! { #request => #body }
-    })
-}
-
-fn build_service_request_match_pattern(method: &MethodData) -> TokenStream {
-    let name = method.request_name();
-    let parameters = method.parameters();
-
-    if !parameters.is_empty() {
-        let bindings = parameters.iter().map(ParameterData::binding);
-
-        quote! {
-            Request::#name {
-                #( #bindings ),*
-            }
-        }
-    } else {
-        quote! { Request::#name }
-    }
-}
-
-fn build_service_request_match_arm(self_type: &Type, method: &MethodData) -> TokenStream {
-    let method_name = method.name();
-    let bindings = method.parameters().iter().map(ParameterData::binding);
-
-    quote! {
-        futures::FutureExt::boxed(#self_type::#method_name( #( #bindings ),* ))
     }
 }
 

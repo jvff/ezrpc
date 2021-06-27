@@ -1,6 +1,6 @@
 use {
     proc_macro2::TokenStream,
-    quote::quote,
+    quote::{quote, ToTokens},
     syn::{parse_quote, GenericArgument, Path, PathArguments, ReturnType, Type},
 };
 
@@ -107,6 +107,19 @@ impl ResultData {
         match self {
             ResultData::NotResult(_) => quote! { () },
             ResultData::Result { err_type, .. } => quote! { #err_type },
+        }
+    }
+}
+
+impl ToTokens for ResultData {
+    fn to_tokens(&self, token_stream: &mut TokenStream) {
+        match self {
+            ResultData::NotResult(return_type) => return_type.to_tokens(token_stream),
+            ResultData::Result { ok_type, err_type } => {
+                let result = quote! { ::std::result::Result<#ok_type, #err_type> };
+
+                result.to_tokens(token_stream)
+            }
         }
     }
 }

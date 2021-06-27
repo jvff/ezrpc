@@ -40,21 +40,6 @@ impl Generator {
         }
     }
 
-    /// Retrieve the underlying type used in the input `impl` block.
-    pub fn self_type(&self) -> &Type {
-        &self.self_type
-    }
-
-    /// Retrieve the list of method meta-data for all methods in the `impl` block.
-    pub fn methods(&self) -> &[MethodData] {
-        &self.methods
-    }
-
-    /// Retrieve the shared resulting output type.
-    pub fn result(&self) -> &ResultData {
-        &self.result
-    }
-
     /// Generate the `Request` enum type for sending to the generated [`tower::Service`].
     ///
     /// Contains one variant for each method, in order to determine which method to call.

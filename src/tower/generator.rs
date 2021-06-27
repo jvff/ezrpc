@@ -1,6 +1,7 @@
 use {
     super::{method_data::MethodData, result_data::ResultData},
     proc_macro2::TokenStream,
+    proc_macro_error::abort,
     quote::quote,
     syn::{ImplItem, ItemImpl, Type},
 };
@@ -30,6 +31,10 @@ impl Generator {
                 _ => None,
             })
             .collect();
+
+        if methods.is_empty() {
+            abort!(item, "`impl` item has no methods");
+        }
 
         let result = methods[0].result().clone();
 

@@ -38,13 +38,14 @@ fn build_request(item: &ItemImpl) -> TokenStream {
 fn build_request_variant(method: &ImplItemMethod) -> TokenStream {
     let name_string = method.sig.ident.to_string().to_camel_case();
     let name = Ident::new(&name_string, method.sig.ident.span());
+    let parameters = extract_parameter_data(method);
 
-    if has_parameters(method) {
-        let parameters = build_request_variant_parameters(method);
+    if !parameters.is_empty() {
+        let fields = parameters.iter().map(ParameterData::declaration);
 
         quote! {
             #name {
-                #( #parameters ),*
+                #( #fields ),*
             }
         }
     } else {
@@ -52,21 +53,7 @@ fn build_request_variant(method: &ImplItemMethod) -> TokenStream {
     }
 }
 
-fn has_parameters(method: &ImplItemMethod) -> bool {
-    let inputs = &method.sig.inputs;
-
-    if inputs.is_empty() {
-        false
-    } else if inputs.len() > 1 {
-        true
-    } else {
-        !matches!(inputs.first(), Some(FnArg::Receiver(_)))
-    }
-}
-
-fn build_request_variant_parameters(
-    method: &ImplItemMethod,
-) -> impl Iterator<Item = TokenStream> + '_ {
+fn extract_parameter_data(method: &ImplItemMethod) -> Vec<ParameterData> {
     method
         .sig
         .inputs
@@ -75,7 +62,7 @@ fn build_request_variant_parameters(
             FnArg::Receiver(_) => None,
             FnArg::Typed(argument) => Some(ParameterData::new(&argument)),
         })
-        .map(|parameter_data| parameter_data.declaration())
+        .collect()
 }
 
 fn build_service(item: &ItemImpl) -> TokenStream {
@@ -91,8 +78,9 @@ fn build_service(item: &ItemImpl) -> TokenStream {
 }
 
 fn build_service_impl(item: &ItemImpl) -> TokenStream {
-    let response = build_service_response(item);
-    let error = build_service_error(item);
+    let result_data = extract_result_data(item);
+    let response = result_data.ok_type();
+    let error = result_data.err_type();
     let request_calls = build_service_request_calls(item);
 
     quote! {
@@ -150,13 +138,14 @@ fn build_service_request_calls(item: &ItemImpl) -> impl Iterator<Item = TokenStr
 fn build_service_request_match_pattern(method: &ImplItemMethod) -> TokenStream {
     let name_string = method.sig.ident.to_string().to_camel_case();
     let name = Ident::new(&name_string, method.sig.ident.span());
+    let parameters = extract_parameter_data(method);
 
-    if has_parameters(method) {
-        let parameters = build_request_match_bindings(method);
+    if !parameters.is_empty() {
+        let bindings = parameters.iter().map(ParameterData::binding);
 
         quote! {
             Request::#name {
-                #( #parameters ),*
+                #( #bindings ),*
             }
         }
     } else {
@@ -229,13 +218,14 @@ fn build_service_method_parameters(
 fn build_service_method_request(method: &ImplItemMethod) -> TokenStream {
     let name_string = method.sig.ident.to_string().to_camel_case();
     let name = Ident::new(&name_string, method.sig.ident.span());
+    let parameters = extract_parameter_data(method);
 
-    if has_parameters(method) {
-        let parameters = build_request_match_bindings(method);
+    if !parameters.is_empty() {
+        let bindings = parameters.iter().map(ParameterData::binding);
 
         quote! {
             Request::#name {
-                #( #parameters ),*
+                #( #bindings ),*
             }
         }
     } else {

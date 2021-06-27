@@ -117,4 +117,38 @@ impl MethodData {
             }
         }
     }
+
+    /// Generate a helper method to create and send the `Request` to call this method's
+    /// implementation.
+    pub fn service_method(&self) -> TokenStream {
+        let method_name = &self.name;
+        let parameters = self.parameters.iter().map(ParameterData::declaration);
+        let result = &self.result;
+        let request = self.request_construction();
+
+        quote! {
+            pub async fn #method_name(&mut self, #( #parameters ),*) -> #result {
+                use tower::{Service as _, ServiceExt as _};
+
+                self.ready().await?.call(#request).await
+            }
+        }
+    }
+
+    /// Generate the code to create the `Request` variant for this method.
+    fn request_construction(&self) -> TokenStream {
+        let name = &self.request_name;
+
+        if self.parameters.is_empty() {
+            quote! { Request::#name }
+        } else {
+            let parameters = self.parameters.iter().map(ParameterData::binding);
+
+            quote! {
+                Request::#name {
+                    #( #parameters ),*
+                }
+            }
+        }
+    }
 }

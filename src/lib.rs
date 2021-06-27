@@ -1,7 +1,7 @@
 mod tower;
 
 use {
-    crate::tower::{MethodData, ParameterData},
+    crate::tower::MethodData,
     proc_macro::TokenStream as RawTokenStream,
     proc_macro2::TokenStream,
     quote::quote,
@@ -91,43 +91,11 @@ fn build_service_impl(self_type: &Type, methods: &[MethodData]) -> TokenStream {
 }
 
 fn build_service_methods(methods: &[MethodData]) -> TokenStream {
-    let service_methods = methods.iter().map(build_service_method);
+    let service_methods = methods.iter().map(MethodData::service_method);
 
     quote! {
         impl Service {
             #( #service_methods )*
         }
-    }
-}
-
-fn build_service_method(method: &MethodData) -> TokenStream {
-    let method_name = method.name();
-    let parameters = method.parameters().iter().map(ParameterData::declaration);
-    let result = method.result();
-    let request = build_service_method_request(method);
-
-    quote! {
-        pub async fn #method_name(&mut self, #( #parameters ),*) #result {
-            use tower::{Service as _, ServiceExt as _};
-
-            self.ready().await?.call(#request).await
-        }
-    }
-}
-
-fn build_service_method_request(method: &MethodData) -> TokenStream {
-    let name = method.request_name();
-    let parameters = method.parameters();
-
-    if !parameters.is_empty() {
-        let bindings = parameters.iter().map(ParameterData::binding);
-
-        quote! {
-            Request::#name {
-                #( #bindings ),*
-            }
-        }
-    } else {
-        quote! { Request::#name }
     }
 }

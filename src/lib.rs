@@ -33,29 +33,12 @@ fn extract_method_data(item: &ItemImpl) -> Vec<MethodData> {
 }
 
 fn build_request(methods: &[MethodData]) -> TokenStream {
-    let variants = methods.iter().map(build_request_variant);
+    let variants = methods.iter().map(MethodData::request_enum_variant);
 
     quote! {
         pub enum Request {
             #( #variants ),*
         }
-    }
-}
-
-fn build_request_variant(method: &MethodData) -> TokenStream {
-    let name = method.request_name();
-    let parameters = method.parameters();
-
-    if !parameters.is_empty() {
-        let fields = parameters.iter().map(ParameterData::declaration);
-
-        quote! {
-            #name {
-                #( #fields ),*
-            }
-        }
-    } else {
-        quote! { #name }
     }
 }
 

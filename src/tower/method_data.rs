@@ -1,6 +1,8 @@
 use {
     super::{parameter_data::ParameterData, result_data::ResultData},
     heck::CamelCase,
+    proc_macro2::TokenStream,
+    quote::quote,
     syn::{FnArg, Ident, ImplItemMethod},
 };
 
@@ -73,5 +75,22 @@ impl MethodData {
     /// Retrieve the [`ResultData`] of this method.
     pub fn result(&self) -> &ResultData {
         &self.result
+    }
+
+    /// Generate the declaration of the `Request` enum variant related to this method.
+    pub fn request_enum_variant(&self) -> TokenStream {
+        let name = &self.request_name;
+
+        if self.parameters.is_empty() {
+            quote! { #name }
+        } else {
+            let parameters = self.parameters.iter().map(ParameterData::declaration);
+
+            quote! {
+                #name {
+                    #( #parameters ),*
+                }
+            }
+        }
     }
 }

@@ -2,11 +2,10 @@ mod tower;
 
 use {
     crate::tower::{MethodData, ParameterData},
-    heck::CamelCase,
     proc_macro::TokenStream as RawTokenStream,
     proc_macro2::TokenStream,
     quote::quote,
-    syn::{parse_macro_input, Ident, ImplItem, ItemImpl, Type},
+    syn::{parse_macro_input, ImplItem, ItemImpl, Type},
 };
 
 #[proc_macro_attribute]
@@ -44,8 +43,7 @@ fn build_request(methods: &[MethodData]) -> TokenStream {
 }
 
 fn build_request_variant(method: &MethodData) -> TokenStream {
-    let name_string = method.name().to_string().to_camel_case();
-    let name = Ident::new(&name_string, method.name().span());
+    let name = method.request_name();
     let parameters = method.parameters();
 
     if !parameters.is_empty() {
@@ -120,8 +118,7 @@ fn build_service_request_calls<'r, 's: 'r, 'm: 'r>(
 }
 
 fn build_service_request_match_pattern(method: &MethodData) -> TokenStream {
-    let name_string = method.name().to_string().to_camel_case();
-    let name = Ident::new(&name_string, method.name().span());
+    let name = method.request_name();
     let parameters = method.parameters();
 
     if !parameters.is_empty() {
@@ -172,8 +169,7 @@ fn build_service_method(method: &MethodData) -> TokenStream {
 }
 
 fn build_service_method_request(method: &MethodData) -> TokenStream {
-    let name_string = method.name().to_string().to_camel_case();
-    let name = Ident::new(&name_string, method.name().span());
+    let name = method.request_name();
     let parameters = method.parameters();
 
     if !parameters.is_empty() {

@@ -73,14 +73,9 @@ fn build_request_variant_parameters(
         .iter()
         .filter_map(|argument| match argument {
             FnArg::Receiver(_) => None,
-            FnArg::Typed(argument) => Some(argument),
+            FnArg::Typed(argument) => Some(ParameterData::new(&argument)),
         })
-        .map(|argument| {
-            let pattern = &argument.pat;
-            let argument_type = &argument.ty;
-
-            quote! { #pattern: #argument_type }
-        })
+        .map(|parameter_data| parameter_data.declaration())
 }
 
 fn build_service(item: &ItemImpl) -> TokenStream {

@@ -8,12 +8,15 @@ use {
 #[derive(Clone)]
 pub enum ResultData {
     /// The return type is not a [`Result`].
-    NotResult(Type),
+    NotResult(Box<Type>),
 
     /// The return type is a [`Result`].
     ///
     /// The [`Ok`][Result::Ok] and [`Err`][Result::Err] types are extracted and stored separately.
-    Result { ok_type: Type, err_type: Type },
+    Result {
+        ok_type: Box<Type>,
+        err_type: Box<Type>,
+    },
 }
 
 impl ResultData {
@@ -26,7 +29,7 @@ impl ResultData {
     /// For function's that have no return type, the type is set to [`()`].
     pub fn new(return_type: &ReturnType) -> Self {
         match return_type {
-            ReturnType::Default => ResultData::NotResult(parse_quote! { () }),
+            ReturnType::Default => ResultData::NotResult(Box::new(parse_quote! { () })),
             ReturnType::Type(_, actual_return_type) => {
                 Self::parse_actual_return_type(actual_return_type)
             }
@@ -38,9 +41,9 @@ impl ResultData {
         match return_type {
             Type::Path(path_type) if path_type.qself.is_none() => {
                 Self::extract_result_type(&path_type.path)
-                    .unwrap_or_else(|| ResultData::NotResult(return_type.clone()))
+                    .unwrap_or_else(|| ResultData::NotResult(Box::new(return_type.clone())))
             }
-            other => ResultData::NotResult(other.clone()),
+            other => ResultData::NotResult(Box::new(other.clone())),
         }
     }
 
@@ -67,7 +70,10 @@ impl ResultData {
             _ => return None,
         };
 
-        Some(ResultData::Result { ok_type, err_type })
+        Some(ResultData::Result {
+            ok_type: Box::new(ok_type),
+            err_type: Box::new(err_type),
+        })
     }
 
     /// Attempts to extract the type arguments inside a [`Path`] that is either `Result` or

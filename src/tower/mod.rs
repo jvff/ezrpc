@@ -1,5 +1,6 @@
+mod generator;
 mod method_data;
 mod parameter_data;
 mod result_data;
 
-pub use self::method_data::MethodData;
+pub use self::{generator::Generator, method_data::MethodData};

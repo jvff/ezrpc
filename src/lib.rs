@@ -1,7 +1,7 @@
 mod tower;
 
 use {
-    crate::tower::ResultData,
+    crate::tower::{ParameterData, ResultData},
     heck::CamelCase,
     proc_macro::TokenStream as RawTokenStream,
     proc_macro2::TokenStream,
@@ -176,13 +176,9 @@ fn build_request_match_bindings(method: &ImplItemMethod) -> impl Iterator<Item =
         .iter()
         .filter_map(|argument| match argument {
             FnArg::Receiver(_) => None,
-            FnArg::Typed(argument) => Some(argument),
+            FnArg::Typed(argument) => Some(ParameterData::new(&argument)),
         })
-        .map(|argument| {
-            let pattern = &argument.pat;
-
-            quote! { #pattern }
-        })
+        .map(|parameter_data| parameter_data.binding())
 }
 
 fn build_service_request_match_arm(self_type: &Type, method: &ImplItemMethod) -> TokenStream {

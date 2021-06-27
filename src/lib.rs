@@ -12,7 +12,7 @@ use {
 pub fn tower(_attribute: RawTokenStream, item_tokens: RawTokenStream) -> RawTokenStream {
     let item = parse_macro_input!(item_tokens as ItemImpl);
     let generator = Generator::new(&item);
-    let request = build_request(&generator);
+    let request = generator.request();
     let service = build_service(&generator);
 
     RawTokenStream::from(quote! {
@@ -20,19 +20,6 @@ pub fn tower(_attribute: RawTokenStream, item_tokens: RawTokenStream) -> RawToke
         #item
         #service
     })
-}
-
-fn build_request(generator: &Generator) -> TokenStream {
-    let variants = generator
-        .methods()
-        .iter()
-        .map(MethodData::request_enum_variant);
-
-    quote! {
-        pub enum Request {
-            #( #variants ),*
-        }
-    }
 }
 
 fn build_service(generator: &Generator) -> TokenStream {

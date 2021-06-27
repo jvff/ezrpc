@@ -1,5 +1,7 @@
 use {
     super::{method_data::MethodData, result_data::ResultData},
+    proc_macro2::TokenStream,
+    quote::quote,
     syn::{ImplItem, ItemImpl, Type},
 };
 
@@ -51,5 +53,18 @@ impl Generator {
     /// Retrieve the shared resulting output type.
     pub fn result(&self) -> &ResultData {
         &self.result
+    }
+
+    /// Generate the `Request` enum type for sending to the generated [`tower::Service`].
+    ///
+    /// Contains one variant for each method, in order to determine which method to call.
+    pub fn request(&self) -> TokenStream {
+        let variants = self.methods.iter().map(MethodData::request_enum_variant);
+
+        quote! {
+            pub enum Request {
+                #( #variants ),*
+            }
+        }
     }
 }

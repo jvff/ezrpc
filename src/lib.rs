@@ -14,7 +14,7 @@ pub fn tower(_attribute: RawTokenStream, item_tokens: RawTokenStream) -> RawToke
     let item = parse_macro_input!(item_tokens as ItemImpl);
     let methods = extract_method_data(&item);
     let request = build_request(&methods);
-    let service = build_service(&item);
+    let service = build_service(&item, &methods);
 
     RawTokenStream::from(quote! {
         #request
@@ -73,9 +73,9 @@ fn extract_parameter_data(method: &ImplItemMethod) -> Vec<ParameterData> {
         .collect()
 }
 
-fn build_service(item: &ItemImpl) -> TokenStream {
+fn build_service(item: &ItemImpl, methods: &[MethodData]) -> TokenStream {
     let service_impl = build_service_impl(item);
-    let service_methods = build_service_methods(item);
+    let service_methods = build_service_methods(methods);
 
     quote! {
         pub struct Service;
@@ -182,11 +182,8 @@ fn build_service_request_match_arm(self_type: &Type, method: &ImplItemMethod) ->
     }
 }
 
-fn build_service_methods(item: &ItemImpl) -> TokenStream {
-    let service_methods = item.items.iter().filter_map(|item| match item {
-        ImplItem::Method(method) => Some(build_service_method(method)),
-        _ => None,
-    });
+fn build_service_methods(methods: &[MethodData]) -> TokenStream {
+    let service_methods = methods.iter().map(build_service_method);
 
     quote! {
         impl Service {
@@ -195,10 +192,10 @@ fn build_service_methods(item: &ItemImpl) -> TokenStream {
     }
 }
 
-fn build_service_method(method: &ImplItemMethod) -> TokenStream {
-    let method_name = &method.sig.ident;
-    let parameters = build_service_method_parameters(method);
-    let result = &method.sig.output;
+fn build_service_method(method: &MethodData) -> TokenStream {
+    let method_name = method.name();
+    let parameters = method.parameters().iter().map(ParameterData::declaration);
+    let result = method.result();
     let request = build_service_method_request(method);
 
     quote! {
@@ -210,23 +207,10 @@ fn build_service_method(method: &ImplItemMethod) -> TokenStream {
     }
 }
 
-fn build_service_method_parameters(
-    method: &ImplItemMethod,
-) -> impl Iterator<Item = TokenStream> + '_ {
-    method
-        .sig
-        .inputs
-        .iter()
-        .filter_map(|argument| match argument {
-            FnArg::Receiver(_) => None,
-            FnArg::Typed(argument) => Some(quote! { #argument }),
-        })
-}
-
-fn build_service_method_request(method: &ImplItemMethod) -> TokenStream {
-    let name_string = method.sig.ident.to_string().to_camel_case();
-    let name = Ident::new(&name_string, method.sig.ident.span());
-    let parameters = extract_parameter_data(method);
+fn build_service_method_request(method: &MethodData) -> TokenStream {
+    let name_string = method.name().to_string().to_camel_case();
+    let name = Ident::new(&name_string, method.name().span());
+    let parameters = method.parameters();
 
     if !parameters.is_empty() {
         let bindings = parameters.iter().map(ParameterData::binding);

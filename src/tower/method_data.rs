@@ -53,25 +53,6 @@ impl MethodData {
         }
     }
 
-    /// Retrieve the name of this method.
-    pub fn name(&self) -> &Ident {
-        &self.name
-    }
-
-    /// Retrieve the name of the generated `Request` variant respective to this method.
-    ///
-    /// This is equivalent to the name of the method converted to CamelCase.
-    pub fn request_name(&self) -> &Ident {
-        &self.request_name
-    }
-
-    /// Retrieve the list of [`ParameterData`] for this method's parameters.
-    ///
-    /// Does not include the receiver type (e.g. `&mut self`).
-    pub fn parameters(&self) -> &Vec<ParameterData> {
-        &self.parameters
-    }
-
     /// Retrieve the [`ResultData`] of this method.
     pub fn result(&self) -> &ResultData {
         &self.result

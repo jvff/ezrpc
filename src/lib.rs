@@ -1,7 +1,7 @@
 mod tower;
 
 use {
-    crate::tower::{ParameterData, ResultData},
+    crate::tower::{MethodData, ParameterData, ResultData},
     heck::CamelCase,
     proc_macro::TokenStream as RawTokenStream,
     proc_macro2::TokenStream,
@@ -12,7 +12,8 @@ use {
 #[proc_macro_attribute]
 pub fn tower(_attribute: RawTokenStream, item_tokens: RawTokenStream) -> RawTokenStream {
     let item = parse_macro_input!(item_tokens as ItemImpl);
-    let request = build_request(&item);
+    let methods = extract_method_data(&item);
+    let request = build_request(&methods);
     let service = build_service(&item);
 
     RawTokenStream::from(quote! {
@@ -22,11 +23,18 @@ pub fn tower(_attribute: RawTokenStream, item_tokens: RawTokenStream) -> RawToke
     })
 }
 
-fn build_request(item: &ItemImpl) -> TokenStream {
-    let variants = item.items.iter().filter_map(|item| match item {
-        ImplItem::Method(method) => Some(build_request_variant(method)),
-        _ => None,
-    });
+fn extract_method_data(item: &ItemImpl) -> Vec<MethodData> {
+    item.items
+        .iter()
+        .filter_map(|item| match item {
+            ImplItem::Method(method) => Some(MethodData::new(&method)),
+            _ => None,
+        })
+        .collect()
+}
+
+fn build_request(methods: &[MethodData]) -> TokenStream {
+    let variants = methods.iter().map(build_request_variant);
 
     quote! {
         pub enum Request {
@@ -35,10 +43,10 @@ fn build_request(item: &ItemImpl) -> TokenStream {
     }
 }
 
-fn build_request_variant(method: &ImplItemMethod) -> TokenStream {
-    let name_string = method.sig.ident.to_string().to_camel_case();
-    let name = Ident::new(&name_string, method.sig.ident.span());
-    let parameters = extract_parameter_data(method);
+fn build_request_variant(method: &MethodData) -> TokenStream {
+    let name_string = method.name().to_string().to_camel_case();
+    let name = Ident::new(&name_string, method.name().span());
+    let parameters = method.parameters();
 
     if !parameters.is_empty() {
         let fields = parameters.iter().map(ParameterData::declaration);

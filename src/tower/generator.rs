@@ -1,5 +1,5 @@
 use {
-    super::{method_data::MethodData, result_data::ResultData},
+    super::{method_data::MethodData, response_data::ResponseData},
     proc_macro2::TokenStream,
     proc_macro_error::abort,
     quote::quote,
@@ -14,8 +14,8 @@ pub struct Generator {
     /// The meta-data for each method in the `impl` block.
     methods: Vec<MethodData>,
 
-    /// The common result type returned by the RPC calls.
-    result: ResultData,
+    /// The common response type sent by the RPC calls.
+    response: ResponseData,
 }
 
 impl Generator {
@@ -36,12 +36,12 @@ impl Generator {
             abort!(item, "`impl` item has no methods");
         }
 
-        let result = methods[0].result().clone();
+        let response = ResponseData::new(&methods);
 
         Generator {
             self_type,
             methods,
-            result,
+            response,
         }
     }
 
@@ -86,8 +86,8 @@ impl Generator {
             .methods
             .iter()
             .map(|method| method.request_match_arm(&self.self_type));
-        let response = self.result.ok_type();
-        let error = self.result.err_type();
+        let response = self.response.ok_type();
+        let error = self.response.err_type();
 
         quote! {
             impl tower::Service<Request> for Service {

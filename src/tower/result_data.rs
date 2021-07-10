@@ -5,7 +5,7 @@ use {
 };
 
 /// Representation of a function's return type as a result.
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum ResultData {
     /// The return type is not a [`Result`].
     NotResult(Box<Type>),

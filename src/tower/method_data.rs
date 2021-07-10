@@ -81,21 +81,33 @@ impl MethodData {
     /// proper implementation method.
     pub fn request_match_arm(&self, self_type: &Type) -> TokenStream {
         let request_name = &self.request_name;
-        let method_name = &self.name;
+        let method_call = self.method_call(self_type);
 
         if self.parameters.is_empty() {
             quote! {
-                Request::#request_name => futures::FutureExt::boxed(#self_type::#method_name())
+                Request::#request_name => futures::FutureExt::boxed(#method_call)
             }
         } else {
             let bindings = self.parameters.iter().map(ParameterData::binding);
-            let arguments = bindings.clone();
 
             quote! {
                 Request::#request_name { #( #bindings ),* } => {
-                    futures::FutureExt::boxed(#self_type::#method_name( #( #arguments ),* ))
+                    futures::FutureExt::boxed(#method_call)
                 }
             }
+        }
+    }
+
+    /// Generate the code that calls this method.
+    fn method_call(&self, self_type: &Type) -> TokenStream {
+        let method_name = &self.name;
+
+        if self.parameters.is_empty() {
+            quote! { #self_type::#method_name() }
+        } else {
+            let arguments = self.parameters.iter().map(ParameterData::binding);
+
+            quote! { #self_type::#method_name( #( #arguments ),* ) }
         }
     }
 

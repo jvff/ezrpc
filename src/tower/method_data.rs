@@ -123,7 +123,9 @@ impl MethodData {
             pub async fn #method_name(&mut self, #( #parameters ),*) -> #result {
                 use tower::{Service as _, ServiceExt as _};
 
-                self.ready().await?.call(#request).await
+                let service = self.ready().await.expect("Generated service is always ready");
+
+                service.call(#request).await
             }
         }
     }

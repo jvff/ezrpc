@@ -19,4 +19,5 @@ impl Example {
     }
 }
 
+#[derive(Debug)]
 pub struct EmptyString;

@@ -13,6 +13,7 @@ impl Example {
             Err(EmptyString)
         }
     }
+
     pub async fn reverse(string: String) -> Result<String, EmptyString> {
         if !string.is_empty() {
             Ok(string.chars().rev().collect())
@@ -23,6 +24,30 @@ impl Example {
 }
 
 pub struct Service;
+
+impl Service {
+    pub async fn echo(&mut self, string: String) -> ::std::result::Result<String, EmptyString> {
+        use tower::{Service as _, ServiceExt as _};
+
+        let service = self
+            .ready()
+            .await
+            .expect("Generated service is always ready");
+
+        service.call(Request::Echo { string }).await
+    }
+
+    pub async fn reverse(&mut self, string: String) -> ::std::result::Result<String, EmptyString> {
+        use tower::{Service as _, ServiceExt as _};
+
+        let service = self
+            .ready()
+            .await
+            .expect("Generated service is always ready");
+
+        service.call(Request::Reverse { string }).await
+    }
+}
 
 impl tower::Service<Request> for Service {
     type Response = String;
@@ -45,18 +70,5 @@ impl tower::Service<Request> for Service {
     }
 }
 
-impl Service {
-    pub async fn echo(&mut self, string: String) -> Result<String, EmptyString> {
-        use tower::{Service as _, ServiceExt as _};
-
-        self.ready().await?.call(Request::Echo { string }).await
-    }
-
-    pub async fn reverse(&mut self, string: String) -> Result<String, EmptyString> {
-        use tower::{Service as _, ServiceExt as _};
-
-        self.ready().await?.call(Request::Reverse { string }).await
-    }
-}
-
+#[derive(Debug)]
 pub struct EmptyString;

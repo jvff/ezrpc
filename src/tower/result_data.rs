@@ -115,6 +115,17 @@ impl ResultData {
             ResultData::Result { err_type, .. } => quote! { #err_type },
         }
     }
+
+    /// Returns the code to convert a [`Future`][std::future::Future]'s output of this
+    /// [`ResultData`] type into a [`Result`].
+    ///
+    /// The conversion is either empty or an expression to be appeneded to the future.
+    pub fn future_output_conversion(&self) -> TokenStream {
+        match self {
+            ResultData::NotResult(_) => quote! { .map(Ok) },
+            ResultData::Result { .. } => quote! {},
+        }
+    }
 }
 
 impl ToTokens for ResultData {

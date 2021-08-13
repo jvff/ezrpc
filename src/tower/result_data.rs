@@ -126,6 +126,17 @@ impl ResultData {
             ResultData::Result { .. } => quote! {},
         }
     }
+
+    /// Returns the code to convert a [`Result`] into this [`ResultData`] type.
+    ///
+    /// If this [`ResultData`] is a [`ResultData::NotResult`], then the generated code `unwrap`s
+    /// the [`Result`], so it may panic.
+    pub fn conversion_from_result(&self) -> TokenStream {
+        match self {
+            ResultData::NotResult(_) => quote! { .expect("Result data never fails") },
+            ResultData::Result { .. } => quote! {},
+        }
+    }
 }
 
 impl ToTokens for ResultData {

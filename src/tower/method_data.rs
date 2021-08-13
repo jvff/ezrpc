@@ -81,32 +81,40 @@ impl MethodData {
     /// proper implementation method.
     pub fn request_match_arm(&self, self_type: &Type) -> TokenStream {
         let request_name = &self.request_name;
-        let method_call = self.method_call(self_type);
+        let method_call_future = self.method_call(self_type);
 
         if self.parameters.is_empty() {
             quote! {
-                Request::#request_name => #method_call.boxed()
+                Request::#request_name => #method_call_future
             }
         } else {
             let bindings = self.parameters.iter().map(ParameterData::binding);
 
             quote! {
-                Request::#request_name { #( #bindings ),* } => #method_call.boxed()
+                Request::#request_name { #( #bindings ),* } => #method_call_future
             }
         }
     }
 
-    /// Generate the code that calls this method.
+    /// Generate the code for a boxed future that calls this method and returns the appropriate
+    /// response type.
     fn method_call(&self, self_type: &Type) -> TokenStream {
-        let method_name = &self.name;
+        let method_call_future = self.raw_method_call(self_type);
         let output_conversion = self.result.future_output_conversion();
 
+        quote! { #method_call_future #output_conversion .boxed() }
+    }
+
+    /// Generate the code that calls this method.
+    fn raw_method_call(&self, self_type: &Type) -> TokenStream {
+        let method_name = &self.name;
+
         if self.parameters.is_empty() {
-            quote! { #self_type::#method_name() #output_conversion }
+            quote! { #self_type::#method_name() }
         } else {
             let arguments = self.parameters.iter().map(ParameterData::binding);
 
-            quote! { #self_type::#method_name( #( #arguments ),* ) #output_conversion }
+            quote! { #self_type::#method_name( #( #arguments ),* ) }
         }
     }
 

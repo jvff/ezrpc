@@ -85,15 +85,13 @@ impl MethodData {
 
         if self.parameters.is_empty() {
             quote! {
-                Request::#request_name => futures::FutureExt::boxed(#method_call)
+                Request::#request_name => #method_call.boxed()
             }
         } else {
             let bindings = self.parameters.iter().map(ParameterData::binding);
 
             quote! {
-                Request::#request_name { #( #bindings ),* } => {
-                    futures::FutureExt::boxed(#method_call)
-                }
+                Request::#request_name { #( #bindings ),* } => #method_call.boxed()
             }
         }
     }

@@ -67,8 +67,8 @@ impl tower::Service<Request> for Service {
         use futures::FutureExt as _;
 
         match request {
-            Request::Echo { string } => futures::FutureExt::boxed(Example::echo(string).map(Ok)),
-            Request::Reverse { string } => futures::FutureExt::boxed(Example::reverse(string)),
+            Request::Echo { string } => Example::echo(string).map(Ok).boxed(),
+            Request::Reverse { string } => Example::reverse(string).boxed(),
         }
     }
 }

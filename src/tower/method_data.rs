@@ -8,6 +8,9 @@ use {
 
 /// Representation of a method's metadata.
 pub struct MethodData {
+    /// If the method is an asynchronous method or not.
+    asynchronous: bool,
+
     /// The name of the method.
     name: Ident,
 
@@ -28,6 +31,7 @@ pub struct MethodData {
 impl MethodData {
     /// Create a new [`MethodData`] by parsing an [`ImplItemMethod`] syntax tree.
     pub fn new(method: &ImplItemMethod) -> Self {
+        let asynchronous = method.sig.asyncness.is_some();
         let name = method.sig.ident.clone();
         let request_name_string = name.to_string().to_camel_case();
         let request_name = Ident::new(&request_name_string, name.span());
@@ -46,6 +50,7 @@ impl MethodData {
         let result = ResultData::new(&method.sig.output);
 
         MethodData {
+            asynchronous,
             name,
             request_name,
             parameters,
@@ -99,10 +104,21 @@ impl MethodData {
     /// Generate the code for a boxed future that calls this method and returns the appropriate
     /// response type.
     fn method_call(&self, self_type: &Type) -> TokenStream {
-        let method_call_future = self.raw_method_call(self_type);
+        let method_call_future = self.method_call_future(self_type);
         let output_conversion = self.result.future_output_conversion();
 
         quote! { #method_call_future #output_conversion .boxed() }
+    }
+
+    /// Generate the code that creates the future representing a call to this method.
+    fn method_call_future(&self, self_type: &Type) -> TokenStream {
+        let method_call = self.raw_method_call(self_type);
+
+        if self.asynchronous {
+            method_call
+        } else {
+            quote! { futures::future::ready(#method_call) }
+        }
     }
 
     /// Generate the code that calls this method.

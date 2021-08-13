@@ -117,9 +117,11 @@ impl Generator {
                 fn call(&mut self, request: Request) -> Self::Future {
                     use futures::FutureExt as _;
 
-                    match request {
-                        #( #request_match_arms ),*
-                    }
+                    async move {
+                        match request {
+                            #( #request_match_arms ),*
+                        }
+                    }.boxed()
                 }
             }
         }

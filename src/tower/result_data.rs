@@ -116,14 +116,15 @@ impl ResultData {
         }
     }
 
-    /// Returns the code to convert a [`Future`][std::future::Future]'s output of this
+    /// Returns the code to convert an expression that results in an instance of this
     /// [`ResultData`] type into a [`Result`].
     ///
-    /// The conversion is either empty or an expression to be appeneded to the future.
-    pub fn future_output_conversion(&self) -> TokenStream {
+    /// The conversion is either simple the expression or the expression wrapped inside an
+    /// [`Ok`][Result::Ok] variant.
+    pub fn conversion_to_result(&self, expression: TokenStream) -> TokenStream {
         match self {
-            ResultData::NotResult(_) => quote! { .map(Ok) },
-            ResultData::Result { .. } => quote! {},
+            ResultData::NotResult(_) => quote! { Ok(#expression) },
+            ResultData::Result { .. } => expression,
         }
     }
 

@@ -96,38 +96,36 @@ impl MethodData {
     /// proper implementation method.
     pub fn request_match_arm(&self, self_type: &Type) -> TokenStream {
         let request_name = &self.request_name;
-        let method_call_future = self.method_call(self_type);
+        let method_call = self.method_call(self_type);
 
         if self.parameters.is_empty() {
             quote! {
-                Request::#request_name => #method_call_future
+                Request::#request_name => #method_call
             }
         } else {
             let bindings = self.bindings();
 
             quote! {
-                Request::#request_name { #bindings } => #method_call_future
+                Request::#request_name { #bindings } => #method_call
             }
         }
     }
 
-    /// Generate the code for a boxed future that calls this method and returns the appropriate
-    /// response type.
+    /// Generate the code for calling this method and prepares the appropriate response type.
     fn method_call(&self, self_type: &Type) -> TokenStream {
-        let method_call_future = self.method_call_future(self_type);
-        let output_conversion = self.result.future_output_conversion();
+        let method_call_await = self.method_call_await(self_type);
 
-        quote! { #method_call_future #output_conversion .boxed() }
+        self.result.conversion_to_result(method_call_await)
     }
 
-    /// Generate the code that creates the future representing a call to this method.
-    fn method_call_future(&self, self_type: &Type) -> TokenStream {
+    /// Generate the code that calls this method and awaits its result if necessary.
+    fn method_call_await(&self, self_type: &Type) -> TokenStream {
         let method_call = self.raw_method_call(self_type);
 
         if self.asynchronous {
-            method_call
+            quote! { #method_call.await }
         } else {
-            quote! { futures::future::ready(#method_call) }
+            method_call
         }
     }
 

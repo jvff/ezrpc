@@ -66,12 +66,13 @@ impl tower::Service<Request> for Service {
     fn call(&mut self, request: Request) -> Self::Future {
         use futures::FutureExt as _;
 
-        match request {
-            Request::Echo { string } => futures::future::ready(Example::echo(string))
-                .map(Ok)
-                .boxed(),
-            Request::Reverse { string } => Example::reverse(string).boxed(),
+        async move {
+            match request {
+                Request::Echo { string } => Ok(Example::echo(string)),
+                Request::Reverse { string } => Example::reverse(string).await,
+            }
         }
+        .boxed()
     }
 }
 

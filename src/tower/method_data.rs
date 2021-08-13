@@ -103,10 +103,10 @@ impl MethodData {
                 Request::#request_name => #method_call_future
             }
         } else {
-            let bindings = self.parameters.iter().map(ParameterData::binding);
+            let bindings = self.bindings();
 
             quote! {
-                Request::#request_name { #( #bindings ),* } => #method_call_future
+                Request::#request_name { #bindings } => #method_call_future
             }
         }
     }
@@ -134,14 +134,9 @@ impl MethodData {
     /// Generate the code that calls this method.
     fn raw_method_call(&self, self_type: &Type) -> TokenStream {
         let method_name = &self.name;
+        let arguments = self.bindings();
 
-        if self.parameters.is_empty() {
-            quote! { #self_type::#method_name() }
-        } else {
-            let arguments = self.parameters.iter().map(ParameterData::binding);
-
-            quote! { #self_type::#method_name( #( #arguments ),* ) }
-        }
+        quote! { #self_type::#method_name( #arguments ) }
     }
 
     /// Generate a helper method to create and send the `Request` to call this method's
@@ -171,13 +166,20 @@ impl MethodData {
         if self.parameters.is_empty() {
             quote! { Request::#name }
         } else {
-            let parameters = self.parameters.iter().map(ParameterData::binding);
+            let parameters = self.bindings();
 
             quote! {
                 Request::#name {
-                    #( #parameters ),*
+                    #parameters
                 }
             }
         }
+    }
+
+    /// Generate a comma-separated list of the parameter bindings.
+    fn bindings(&self) -> TokenStream {
+        let bindings = self.parameters.iter().map(ParameterData::binding);
+
+        quote! { #( #bindings ),* }
     }
 }

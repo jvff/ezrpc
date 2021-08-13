@@ -1,5 +1,5 @@
 use {
-    super::{parameter_data::ParameterData, result_data::ResultData},
+    super::{parameter_data::ParameterData, receiver_type::ReceiverType, result_data::ResultData},
     heck::CamelCase,
     proc_macro2::TokenStream,
     quote::quote,
@@ -13,6 +13,9 @@ pub struct MethodData {
 
     /// The name of the method.
     name: Ident,
+
+    /// The receiver type of the method.
+    receiver_type: ReceiverType,
 
     /// The name of the generated `Request` variant.
     ///
@@ -32,6 +35,7 @@ impl MethodData {
     /// Create a new [`MethodData`] by parsing an [`ImplItemMethod`] syntax tree.
     pub fn new(method: &ImplItemMethod) -> Self {
         let asynchronous = method.sig.asyncness.is_some();
+        let receiver_type = ReceiverType::new(&method.sig.inputs);
         let name = method.sig.ident.clone();
         let request_name_string = name.to_string().to_camel_case();
         let request_name = Ident::new(&request_name_string, name.span());
@@ -52,10 +56,16 @@ impl MethodData {
         MethodData {
             asynchronous,
             name,
+            receiver_type,
             request_name,
             parameters,
             result,
         }
+    }
+
+    /// Retrieve the [`ReceiverType`] of this method.
+    pub fn receiver_type(&self) -> ReceiverType {
+        self.receiver_type
     }
 
     /// Retrieve the [`ResultData`] of this method.

@@ -12,7 +12,7 @@ pub enum Request {
 }
 
 impl Example {
-    pub async fn echo(string: String) -> String {
+    pub fn echo(string: String) -> String {
         string
     }
 
@@ -67,7 +67,9 @@ impl tower::Service<Request> for Service {
         use futures::FutureExt as _;
 
         match request {
-            Request::Echo { string } => Example::echo(string).map(Ok).boxed(),
+            Request::Echo { string } => futures::future::ready(Example::echo(string))
+                .map(Ok)
+                .boxed(),
             Request::Reverse { string } => Example::reverse(string).boxed(),
         }
     }

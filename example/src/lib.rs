@@ -2,7 +2,7 @@ pub struct Example;
 
 #[ezrpc::tower]
 impl Example {
-    pub async fn echo(string: String) -> String {
+    pub fn echo(string: String) -> String {
         string
     }
 

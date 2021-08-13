@@ -1,5 +1,5 @@
 use {
-    super::{method_data::MethodData, response_data::ResponseData},
+    super::{method_data::MethodData, receiver_type::ReceiverType, response_data::ResponseData},
     proc_macro2::TokenStream,
     proc_macro_error::abort,
     quote::quote,
@@ -16,6 +16,9 @@ pub struct Generator {
 
     /// The common response type sent by the RPC calls.
     response: ResponseData,
+
+    /// The most strict method receiver type.
+    receiver_type: ReceiverType,
 }
 
 impl Generator {
@@ -38,10 +41,17 @@ impl Generator {
 
         let response = ResponseData::new(&methods);
 
+        let receiver_type = methods
+            .iter()
+            .map(MethodData::receiver_type)
+            .max()
+            .expect("There is at least one method");
+
         Generator {
             self_type,
             methods,
             response,
+            receiver_type,
         }
     }
 

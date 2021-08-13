@@ -101,13 +101,14 @@ impl MethodData {
     /// Generate the code that calls this method.
     fn method_call(&self, self_type: &Type) -> TokenStream {
         let method_name = &self.name;
+        let output_conversion = self.result.future_output_conversion();
 
         if self.parameters.is_empty() {
-            quote! { #self_type::#method_name() }
+            quote! { #self_type::#method_name() #output_conversion }
         } else {
             let arguments = self.parameters.iter().map(ParameterData::binding);
 
-            quote! { #self_type::#method_name( #( #arguments ),* ) }
+            quote! { #self_type::#method_name( #( #arguments ),* ) #output_conversion }
         }
     }
 
@@ -118,6 +119,7 @@ impl MethodData {
         let parameters = self.parameters.iter().map(ParameterData::declaration);
         let result = &self.result;
         let request = self.request_construction();
+        let response_conversion = self.result.conversion_from_result();
 
         quote! {
             pub async fn #method_name(&mut self, #( #parameters ),*) -> #result {
@@ -125,7 +127,7 @@ impl MethodData {
 
                 let service = self.ready().await.expect("Generated service is always ready");
 
-                service.call(#request).await
+                service.call(#request).await #response_conversion
             }
         }
     }

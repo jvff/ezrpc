@@ -113,6 +113,7 @@ impl Generator {
     ///
     /// The implementation is a large dispatcher, that calls the methods in the input `impl` block.
     fn service_impl(&self) -> TokenStream {
+        let service_data_binding = self.service_data_binding();
         let request_match_arms = self
             .methods
             .iter()
@@ -138,6 +139,8 @@ impl Generator {
                 fn call(&mut self, request: Request) -> Self::Future {
                     use futures::FutureExt as _;
 
+                    #service_data_binding
+
                     async move {
                         match request {
                             #( #request_match_arms ),*
@@ -145,6 +148,16 @@ impl Generator {
                     }.boxed()
                 }
             }
+        }
+    }
+
+    /// Generate the binding to the inner field inside the `Service` type.
+    fn service_data_binding(&self) -> TokenStream {
+        match self.receiver_type {
+            ReceiverType::NoReceiver => quote! {},
+            ReceiverType::Reference | ReceiverType::MutableReference => quote! {
+                let inner = self.0.clone();
+            },
         }
     }
 }

@@ -100,13 +100,17 @@ impl MethodData {
 
         if self.parameters.is_empty() {
             quote! {
-                Request::#request_name => #method_call
+                Request::#request_name => {
+                    #method_call
+                }
             }
         } else {
             let bindings = self.bindings();
 
             quote! {
-                Request::#request_name { #bindings } => #method_call
+                Request::#request_name { #bindings } => {
+                    #method_call
+                }
             }
         }
     }

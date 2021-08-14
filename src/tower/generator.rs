@@ -73,17 +73,38 @@ impl Generator {
     /// The `Service` type receives `Request`s and dispatches them to the method implementations in
     /// the input `impl` block.
     pub fn service(&self) -> TokenStream {
+        let service_data = self.service_data();
         let service_impl = self.service_impl();
         let service_methods = self.methods.iter().map(MethodData::service_method);
 
         quote! {
-            pub struct Service;
+            pub struct Service #service_data;
 
             impl Service {
                 #( #service_methods )*
             }
 
             #service_impl
+        }
+    }
+
+    /// Generate the inner field inside the `Service` type.
+    ///
+    /// This contains a shared reference to the instance that implements the method behaviour. It
+    /// is used for methods that require a `&self` or a `&mut self` receiver. The instance is
+    /// wrapped in an `Arc`, because the `Service` type may live less than the response
+    /// [`Future`][std::future::Future] it returns. If there's at least one method that uses a
+    /// `&mut self` receiver, then the instance is also wrapped inside a
+    /// [`RwLock`][tokio::sync::RwLock], to avoid concurrent access to it.
+    fn service_data(&self) -> TokenStream {
+        let self_type = &self.self_type;
+
+        match self.receiver_type {
+            ReceiverType::NoReceiver => quote! {},
+            ReceiverType::Reference => quote! { (std::sync::Arc<#self_type>) },
+            ReceiverType::MutableReference => {
+                quote! { (std::sync::Arc<tokio::sync::RwLock<#self_type>>) }
+            }
         }
     }
 

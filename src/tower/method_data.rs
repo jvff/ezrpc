@@ -94,9 +94,13 @@ impl MethodData {
     ///
     /// Consists af the match arm on the `Request` enum variant for this method, and a call to the
     /// proper implementation method.
-    pub fn request_match_arm(&self, self_type: &Type) -> TokenStream {
+    pub fn request_match_arm(
+        &self,
+        service_receiver_type: ReceiverType,
+        self_type: &Type,
+    ) -> TokenStream {
         let request_name = &self.request_name;
-        let method_call = self.method_call(self_type);
+        let method_call = self.method_call(service_receiver_type, self_type);
 
         if self.parameters.is_empty() {
             quote! {
@@ -116,15 +120,19 @@ impl MethodData {
     }
 
     /// Generate the code for calling this method and prepares the appropriate response type.
-    fn method_call(&self, self_type: &Type) -> TokenStream {
-        let method_call_await = self.method_call_await(self_type);
+    fn method_call(&self, service_receiver_type: ReceiverType, self_type: &Type) -> TokenStream {
+        let method_call_await = self.method_call_await(service_receiver_type, self_type);
 
         self.result.conversion_to_result(method_call_await)
     }
 
     /// Generate the code that calls this method and awaits its result if necessary.
-    fn method_call_await(&self, self_type: &Type) -> TokenStream {
-        let method_call = self.raw_method_call(self_type);
+    fn method_call_await(
+        &self,
+        service_receiver_type: ReceiverType,
+        self_type: &Type,
+    ) -> TokenStream {
+        let method_call = self.raw_method_call(service_receiver_type, self_type);
 
         if self.asynchronous {
             quote! { #method_call.await }
@@ -134,11 +142,17 @@ impl MethodData {
     }
 
     /// Generate the code that calls this method.
-    fn raw_method_call(&self, self_type: &Type) -> TokenStream {
+    fn raw_method_call(
+        &self,
+        service_receiver_type: ReceiverType,
+        self_type: &Type,
+    ) -> TokenStream {
+        let prefix =
+            service_receiver_type.service_method_call_prefix(self.receiver_type, self_type);
         let method_name = &self.name;
         let arguments = self.bindings();
 
-        quote! { #self_type::#method_name( #arguments ) }
+        quote! { #prefix #method_name( #arguments ) }
     }
 
     /// Generate a helper method to create and send the `Request` to call this method's

@@ -117,7 +117,7 @@ impl Generator {
         let request_match_arms = self
             .methods
             .iter()
-            .map(|method| method.request_match_arm(&self.self_type));
+            .map(|method| method.request_match_arm(self.receiver_type, &self.self_type));
         let response = self.response.ok_type();
         let error = self.response.err_type();
 

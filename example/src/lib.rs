@@ -2,11 +2,11 @@ pub struct Example;
 
 #[ezrpc::tower]
 impl Example {
-    pub fn echo(string: String) -> String {
+    pub fn echo(&self, string: String) -> String {
         string
     }
 
-    pub async fn reverse(string: String) -> Result<String, EmptyString> {
+    pub async fn reverse(&mut self, string: String) -> Result<String, EmptyString> {
         if !string.is_empty() {
             Ok(string.chars().rev().collect())
         } else {

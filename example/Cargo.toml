@@ -9,4 +9,5 @@ edition = "2018"
 [dependencies]
 ezrpc = { path = ".." }
 futures = "0.3"
+tokio = { version = "1", features = ["sync"] }
 tower = { version = "0.4", features = ["util"] }

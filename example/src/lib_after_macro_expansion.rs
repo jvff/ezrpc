@@ -1,7 +1,11 @@
-use std::{
-    future::Future,
-    pin::Pin,
-    task::{Context, Poll},
+use {
+    std::{
+        future::Future,
+        pin::Pin,
+        sync::Arc,
+        task::{Context, Poll},
+    },
+    tokio::sync::RwLock,
 };
 
 pub struct Example;
@@ -12,11 +16,11 @@ pub enum Request {
 }
 
 impl Example {
-    pub fn echo(string: String) -> String {
+    pub fn echo(&self, string: String) -> String {
         string
     }
 
-    pub async fn reverse(string: String) -> Result<String, EmptyString> {
+    pub async fn reverse(&mut self, string: String) -> Result<String, EmptyString> {
         if !string.is_empty() {
             Ok(string.chars().rev().collect())
         } else {
@@ -25,7 +29,7 @@ impl Example {
     }
 }
 
-pub struct Service;
+pub struct Service(Arc<RwLock<Example>>);
 
 impl Service {
     pub async fn echo(&mut self, string: String) -> String {
@@ -66,10 +70,12 @@ impl tower::Service<Request> for Service {
     fn call(&mut self, request: Request) -> Self::Future {
         use futures::FutureExt as _;
 
+        let inner = self.0.clone();
+
         async move {
             match request {
-                Request::Echo { string } => Ok(Example::echo(string)),
-                Request::Reverse { string } => Example::reverse(string).await,
+                Request::Echo { string } => Ok(inner.read().await.echo(string)),
+                Request::Reverse { string } => inner.write().await.reverse(string).await,
             }
         }
         .boxed()

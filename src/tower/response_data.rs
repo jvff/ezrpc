@@ -13,14 +13,20 @@ pub struct ResponseData {
 impl ResponseData {
     /// Create a new [`ResponseData`] from the list of RPC methods.
     pub fn new(methods: &[MethodData]) -> Self {
-        let result = methods
-            .iter()
-            .map(MethodData::result)
-            .reduce(Self::merge_method_results)
+        let mut method_results = methods.iter().map(MethodData::result);
+
+        let starting_result_data = method_results
+            .next()
             .cloned()
             .expect("Empty slice of methods in `ResponseData::new`");
+        let starting_response_data = ResponseData {
+            result: starting_result_data,
+        };
 
-        ResponseData { result }
+        match method_results.fold(Ok(starting_response_data), Self::fold_method_results) {
+            Ok(response_data) => response_data,
+            Err(incompatible_type) => abort!(incompatible_type, "Incompatible method return type"),
+        }
     }
 
     /// Return the [`Ok`][Result::Ok] type that's expected from the RPC call.
@@ -33,24 +39,28 @@ impl ResponseData {
         self.result.err_type()
     }
 
-    /// Merge the [`ResultData`] from two methods.
-    fn merge_method_results<'r>(
-        first_result: &'r ResultData,
-        second_result: &'r ResultData,
-    ) -> &'r ResultData {
-        match (&first_result, second_result) {
+    /// Fold the [`ResultData`] from a method into a [`ResponseData`].
+    fn fold_method_results(
+        current_response: Result<ResponseData, ResultData>,
+        method_result: &ResultData,
+    ) -> Result<ResponseData, ResultData> {
+        let ResponseData { result } = current_response?;
+
+        match (&result, method_result) {
             (ResultData::Result { ok_type, .. }, ResultData::NotResult(second))
                 if ok_type == second =>
             {
-                first_result
+                Ok(ResponseData { result })
             }
             (ResultData::NotResult(first), ResultData::Result { ok_type, .. })
                 if ok_type == first =>
             {
-                second_result
+                Ok(ResponseData {
+                    result: method_result.clone(),
+                })
             }
-            (first, second) if *first == second => first_result,
-            _ => abort!(second_result, "Incompatible method return type"),
+            (first, second) if first == second => Ok(ResponseData { result }),
+            _ => Err(method_result.clone()),
         }
     }
 }

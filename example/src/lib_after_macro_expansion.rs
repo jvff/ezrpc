@@ -11,11 +11,16 @@ use {
 pub struct Example;
 
 pub enum Request {
+    Name,
     Echo { string: String },
     Reverse { string: String },
 }
 
 impl Example {
+    pub fn name() -> String {
+        "Example".to_owned()
+    }
+
     pub fn echo(&self, string: String) -> String {
         string
     }
@@ -32,6 +37,20 @@ impl Example {
 pub struct Service(Arc<RwLock<Example>>);
 
 impl Service {
+    pub async fn name(&mut self) -> String {
+        use tower::{Service as _, ServiceExt as _};
+
+        let service = self
+            .ready()
+            .await
+            .expect("Generated service is always ready");
+
+        service
+            .call(Request::Name)
+            .await
+            .expect("Result data never fails")
+    }
+
     pub async fn echo(&mut self, string: String) -> String {
         use tower::{Service as _, ServiceExt as _};
 
@@ -74,6 +93,7 @@ impl tower::Service<Request> for Service {
 
         async move {
             match request {
+                Request::Name => Ok(Example::name()),
                 Request::Echo { string } => Ok(inner.read().await.echo(string)),
                 Request::Reverse { string } => inner.write().await.reverse(string).await,
             }

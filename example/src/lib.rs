@@ -2,6 +2,10 @@ pub struct Example;
 
 #[ezrpc::tower]
 impl Example {
+    pub fn name() -> String {
+        "Example".to_owned()
+    }
+
     pub fn echo(&self, string: String) -> String {
         string
     }

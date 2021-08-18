@@ -2,6 +2,7 @@ use {
     super::{method_data::MethodData, result_data::ResultData},
     proc_macro2::TokenStream,
     proc_macro_error::abort,
+    quote::{quote, ToTokens},
 };
 
 /// Representation of the RPC response type.
@@ -31,12 +32,15 @@ impl ResponseData {
 
     /// Return the [`Ok`][Result::Ok] type that's expected from the RPC call.
     pub fn ok_type(&self) -> TokenStream {
-        self.result.ok_type()
+        self.result.ok_type().to_token_stream()
     }
 
     /// Return the [`Err`][Result::Err] type that's expected from the RPC call.
     pub fn err_type(&self) -> TokenStream {
-        self.result.err_type()
+        self.result
+            .err_type()
+            .map(ToTokens::to_token_stream)
+            .unwrap_or_else(|| quote! { () })
     }
 
     /// Fold the [`ResultData`] from a method into a [`ResponseData`].

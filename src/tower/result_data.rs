@@ -100,19 +100,18 @@ impl ResultData {
     }
 
     /// Returns the [`Ok`][Result::Ok] type, or the bare return type if it's not a [`Result`] type.
-    pub fn ok_type(&self) -> TokenStream {
+    pub fn ok_type(&self) -> &Box<Type> {
         match self {
-            ResultData::NotResult(return_type) => quote! { #return_type },
-            ResultData::Result { ok_type, .. } => quote! { #ok_type },
+            ResultData::NotResult(return_type) => return_type,
+            ResultData::Result { ok_type, .. } => ok_type,
         }
     }
 
-    /// Returns the [`Err`][Result::Err] type, or [`()`] if the return type is not a [`Result`]
-    /// type.
-    pub fn err_type(&self) -> TokenStream {
+    /// Returns the [`Err`][Result::Err] type if the return type is a [`Result`] type.
+    pub fn err_type(&self) -> Option<&Box<Type>> {
         match self {
-            ResultData::NotResult(_) => quote! { () },
-            ResultData::Result { err_type, .. } => quote! { #err_type },
+            ResultData::NotResult(_) => None,
+            ResultData::Result { err_type, .. } => Some(err_type),
         }
     }
 

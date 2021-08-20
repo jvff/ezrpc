@@ -68,6 +68,11 @@ impl MethodData {
         self.receiver_type
     }
 
+    /// Retrieve the identifier for this method's request variant.
+    pub fn request_name(&self) -> &Ident {
+        &self.request_name
+    }
+
     /// Retrieve the [`ResultData`] of this method.
     pub fn result(&self) -> &ResultData {
         &self.result

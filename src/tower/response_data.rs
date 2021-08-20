@@ -35,6 +35,18 @@ impl ResponseData {
         quote! {}
     }
 
+    /// Generate the conversion of a method's return type into the response type.
+    ///
+    /// Wraps the provided `expression` that results in the return type of the `method` into the
+    /// shared response type represented by this [`ResponseData`].
+    pub fn conversion_to_response(
+        &self,
+        method: &MethodData,
+        expression: TokenStream,
+    ) -> TokenStream {
+        method.result().conversion_to_result(expression)
+    }
+
     /// Return the [`Ok`][Result::Ok] type that's expected from the RPC call.
     pub fn ok_type(&self) -> TokenStream {
         self.result.ok_type().to_token_stream()

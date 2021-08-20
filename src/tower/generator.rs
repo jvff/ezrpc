@@ -119,10 +119,9 @@ impl Generator {
     /// The implementation is a large dispatcher, that calls the methods in the input `impl` block.
     fn service_impl(&self) -> TokenStream {
         let service_data_binding = self.service_data_binding();
-        let request_match_arms = self
-            .methods
-            .iter()
-            .map(|method| method.request_match_arm(self.receiver_type, &self.self_type));
+        let request_match_arms = self.methods.iter().map(|method| {
+            method.request_match_arm(self.receiver_type, &self.self_type, &self.response)
+        });
         let response = self.response.ok_type();
         let error = self.response.err_type();
 

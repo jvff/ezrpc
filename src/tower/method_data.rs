@@ -1,5 +1,8 @@
 use {
-    super::{parameter_data::ParameterData, receiver_type::ReceiverType, result_data::ResultData},
+    super::{
+        parameter_data::ParameterData, receiver_type::ReceiverType, response_data::ResponseData,
+        result_data::ResultData,
+    },
     heck::CamelCase,
     proc_macro2::TokenStream,
     quote::quote,
@@ -103,9 +106,10 @@ impl MethodData {
         &self,
         service_receiver_type: ReceiverType,
         self_type: &Type,
+        response_data: &ResponseData,
     ) -> TokenStream {
         let request_name = &self.request_name;
-        let method_call = self.method_call(service_receiver_type, self_type);
+        let method_call = self.method_call(service_receiver_type, self_type, response_data);
 
         if self.parameters.is_empty() {
             quote! {
@@ -125,10 +129,15 @@ impl MethodData {
     }
 
     /// Generate the code for calling this method and prepares the appropriate response type.
-    fn method_call(&self, service_receiver_type: ReceiverType, self_type: &Type) -> TokenStream {
+    fn method_call(
+        &self,
+        service_receiver_type: ReceiverType,
+        self_type: &Type,
+        response_data: &ResponseData,
+    ) -> TokenStream {
         let method_call_await = self.method_call_await(service_receiver_type, self_type);
 
-        self.result.conversion_to_result(method_call_await)
+        response_data.conversion_to_response(self, method_call_await)
     }
 
     /// Generate the code that calls this method and awaits its result if necessary.

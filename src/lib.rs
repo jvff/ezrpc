@@ -14,10 +14,12 @@ pub fn tower(_attribute: TokenStream, item_tokens: TokenStream) -> TokenStream {
     let item = parse_macro_input!(item_tokens as ItemImpl);
     let generator = Generator::new(&item);
     let request = generator.request();
+    let response = generator.response();
     let service = generator.service();
 
     TokenStream::from(quote! {
         #request
+        #response
         #item
         #service
     })

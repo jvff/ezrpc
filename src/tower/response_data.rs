@@ -30,6 +30,11 @@ impl ResponseData {
         }
     }
 
+    /// Generate the code for declaring the [`Response`] type, if necessary.
+    pub fn response_type_declaration(&self) -> TokenStream {
+        quote! {}
+    }
+
     /// Return the [`Ok`][Result::Ok] type that's expected from the RPC call.
     pub fn ok_type(&self) -> TokenStream {
         self.result.ok_type().to_token_stream()

@@ -68,6 +68,11 @@ impl Generator {
         }
     }
 
+    /// Generate the `Response` type for sending from the generated [`tower::Service`].
+    pub fn response(&self) -> TokenStream {
+        self.response.response_type_declaration()
+    }
+
     /// Generate the `Service` type and its [`tower::Service`] implementation.
     ///
     /// The `Service` type receives `Request`s and dispatches them to the method implementations in

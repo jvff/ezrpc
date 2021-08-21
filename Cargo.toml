@@ -4,13 +4,5 @@ version = "0.1.0"
 authors = ["Janito Vaqueiro Ferreira Filho <janito.vff@gmail.com>"]
 edition = "2018"
 
-[lib]
-proc-macro = true
-
 [dependencies]
-either = "1"
-heck = "0.3"
-proc-macro2 = "1"
-proc-macro-error = "1"
-quote = "1"
-syn = { version = "1", features = ["full", "extra-traits"] }
+ezrpc-proc-macros = { version = "0.1.0", path = "proc-macros" }

@@ -69,6 +69,9 @@ impl Generator {
     }
 
     /// Generate the `Response` type for sending from the generated [`tower::Service`].
+    ///
+    /// Can either be a shared type for all methods, or an enumeration with one variant for each
+    /// method, representing which method was called by the service.
     pub fn response(&self) -> TokenStream {
         self.response.response_type_declaration()
     }

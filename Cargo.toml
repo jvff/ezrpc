@@ -8,6 +8,7 @@ edition = "2018"
 proc-macro = true
 
 [dependencies]
+either = "1"
 heck = "0.3"
 proc-macro2 = "1"
 proc-macro-error = "1"

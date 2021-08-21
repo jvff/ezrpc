@@ -14,18 +14,10 @@ pub struct ResponseData {
 impl ResponseData {
     /// Create a new [`ResponseData`] from the list of RPC methods.
     pub fn new(methods: &[MethodData]) -> Self {
-        let mut method_results = methods.iter().map(MethodData::result);
+        let method_results = methods.iter().map(MethodData::result);
 
-        let starting_result_data = method_results
-            .next()
-            .cloned()
-            .expect("Empty slice of methods in `ResponseData::new`");
-        let starting_response_data = ResponseData {
-            result: starting_result_data,
-        };
-
-        match method_results.fold(Ok(starting_response_data), Self::fold_method_results) {
-            Ok(response_data) => response_data,
+        match Self::common_shared_result(method_results) {
+            Ok(result) => ResponseData { result },
             Err(incompatible_type) => abort!(incompatible_type, "Incompatible method return type"),
         }
     }
@@ -60,28 +52,32 @@ impl ResponseData {
             .unwrap_or_else(|| quote! { () })
     }
 
-    /// Fold the [`ResultData`] from a method into a [`ResponseData`].
-    fn fold_method_results(
-        current_response: Result<ResponseData, ResultData>,
-        method_result: &ResultData,
-    ) -> Result<ResponseData, ResultData> {
-        let ResponseData { result } = current_response?;
+    /// Figure out if all methods share a common `Result` type.
+    fn common_shared_result<'r>(
+        mut result_data: impl Iterator<Item = &'r ResultData>,
+    ) -> Result<ResultData, ResultData> {
+        let first_result_data = result_data
+            .next()
+            .expect("Empty list of `ResultData` used to determine shared result");
 
-        match (&result, method_result) {
-            (ResultData::Result { ok_type, .. }, ResultData::NotResult(second))
-                if ok_type == second =>
-            {
-                Ok(ResponseData { result })
-            }
-            (ResultData::NotResult(first), ResultData::Result { ok_type, .. })
-                if ok_type == first =>
-            {
-                Ok(ResponseData {
-                    result: method_result.clone(),
-                })
-            }
-            (first, second) if first == second => Ok(ResponseData { result }),
-            _ => Err(method_result.clone()),
-        }
+        result_data
+            .try_fold(
+                first_result_data,
+                |current_result_data, next_result_data| {
+                    if current_result_data == next_result_data {
+                        Ok(current_result_data)
+                    } else if current_result_data.ok_type() != next_result_data.ok_type() {
+                        Err(next_result_data)
+                    } else if current_result_data.err_type().is_none() {
+                        Ok(next_result_data)
+                    } else if next_result_data.err_type().is_none() {
+                        Ok(current_result_data)
+                    } else {
+                        Err(next_result_data)
+                    }
+                },
+            )
+            .map(|ok| ok.clone())
+            .map_err(|err| err.clone())
     }
 }

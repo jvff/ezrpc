@@ -6,3 +6,5 @@ edition = "2018"
 
 [dependencies]
 ezrpc-proc-macros = { version = "0.1.0", path = "proc-macros" }
+fast-async-mutex = "0.6"
+futures = "0.3"

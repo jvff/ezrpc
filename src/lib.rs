@@ -1,3 +1,4 @@
+mod common;
 mod util;
 
-pub use ezrpc_proc_macros::tower;
+pub use {self::common::Dispatcher, ezrpc_proc_macros::tower};
